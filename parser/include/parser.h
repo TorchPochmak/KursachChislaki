@@ -13,27 +13,55 @@ namespace Calculation
     public:
 
         std::vector< std::vector< std::complex<double>>> _reactions;
+
         std::vector<double> _mass;
+        int _cnt_components;
+
+        std::vector<double> _fuel_fraction;
         std::vector<double> _A;
         std::vector<double> _n;
         std::vector<double> _E;
 
     public:
 
-        reaction_data (const std::string &path_reactions,
-            const std::string &path_coefs);
+        reaction_data ();
+
+    public:
+
+        reaction_data &parse_reactions (const std::string &path) noexcept;
+        reaction_data &parse_coefficients (const std::string &path) noexcept;
+        reaction_data &parse_fuel (const std::string &path) noexcept;
     };
 
-    std::vector< std::pair< double, double>> get_chemical_rate (const double &T, const reaction_data &data) noexcept;
+    std::vector<double> get_mole_count (const reaction_data &data, const double T) noexcept;
 
-    double get_k (const double &T,
-        const double &A, 
+    std::vector< std::pair<double, double>> get_reaction_rates (const reaction_data &data,
+        const double T) noexcept;
+
+    double get_reaction_density_comp_forward (
+        const int &elem_cnt,
+        const std::vector<std::complex<double>> &reaction, 
+        const std::vector<double> &fuel_fractions) noexcept;
+
+    double get_reaction_density_comp_reverse (
+        const int &elem_cnt,
+        const std::vector<std::complex<double>> &reaction, 
+        const std::vector<double> &fuel_fractions) noexcept;
+
+    double get_reaction_density_comp (
+        const int &elem_cnt,
+        const std::vector<std::complex<double>> &reaction, 
+        const std::vector<double> &fuel_fractions) noexcept;
+
+
+
+    double get_K_forward (const reaction_data &data, const double &T, const int &r) noexcept;
+    double get_K_reverse (const reaction_data &data, const double &T, const int &r) noexcept;
+
+    double get_K (const double &A,
+        const double &E,
         const double &n,
-        const double &E) noexcept;
-
-    std::vector<double> get_gamma (const std::vector< std::complex<double>> &reaction,
-        const std::vector<double> &mass) noexcept;
-
+        const double &T) noexcept;
     
   
 }; // namespace Calculation

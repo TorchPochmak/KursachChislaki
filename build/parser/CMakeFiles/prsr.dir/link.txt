@@ -1,0 +1,2 @@
+C:\msys64\mingw64\bin\ar.exe qc libprsr.a CMakeFiles/prsr.dir/src/parser.cpp.obj
+C:\msys64\mingw64\bin\ranlib.exe libprsr.a

@@ -1,0 +1,8 @@
+X:/Coding/CPP/KursachChislaki/build/CMakeFiles/edit_cache.dir
+X:/Coding/CPP/KursachChislaki/build/CMakeFiles/rebuild_cache.dir
+X:/Coding/CPP/KursachChislaki/build/parser/CMakeFiles/prsr.dir
+X:/Coding/CPP/KursachChislaki/build/parser/CMakeFiles/edit_cache.dir
+X:/Coding/CPP/KursachChislaki/build/parser/CMakeFiles/rebuild_cache.dir
+X:/Coding/CPP/KursachChislaki/build/test/CMakeFiles/prsr_tst.dir
+X:/Coding/CPP/KursachChislaki/build/test/CMakeFiles/edit_cache.dir
+X:/Coding/CPP/KursachChislaki/build/test/CMakeFiles/rebuild_cache.dir

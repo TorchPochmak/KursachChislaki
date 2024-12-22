@@ -1,0 +1,14 @@
+[
+{
+  "directory": "X:/Coding/CPP/KursachChislaki/build/parser",
+  "command": "C:\\msys64\\mingw64\\bin\\g++.exe  @CMakeFiles/prsr.dir/includes_CXX.rsp -g -std=c++17 -o CMakeFiles\\prsr.dir\\src\\parser.cpp.obj -c X:\\Coding\\CPP\\KursachChislaki\\parser\\src\\parser.cpp",
+  "file": "X:/Coding/CPP/KursachChislaki/parser/src/parser.cpp",
+  "output": "parser/CMakeFiles/prsr.dir/src/parser.cpp.obj"
+},
+{
+  "directory": "X:/Coding/CPP/KursachChislaki/build/test",
+  "command": "C:\\msys64\\mingw64\\bin\\g++.exe  @CMakeFiles/prsr_tst.dir/includes_CXX.rsp -g -std=c++14 -o CMakeFiles\\prsr_tst.dir\\test.cpp.obj -c X:\\Coding\\CPP\\KursachChislaki\\test\\test.cpp",
+  "file": "X:/Coding/CPP/KursachChislaki/test/test.cpp",
+  "output": "test/CMakeFiles/prsr_tst.dir/test.cpp.obj"
+}
+]

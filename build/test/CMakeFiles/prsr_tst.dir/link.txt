@@ -1,0 +1,3 @@
+X:\CMake\bin\cmake.exe -E rm -f CMakeFiles\prsr_tst.dir/objects.a
+C:\msys64\mingw64\bin\ar.exe qc CMakeFiles\prsr_tst.dir/objects.a @CMakeFiles\prsr_tst.dir\objects1.rsp
+C:\msys64\mingw64\bin\g++.exe -g -Wl,--whole-archive CMakeFiles\prsr_tst.dir/objects.a -Wl,--no-whole-archive -o prsr_tst.exe -Wl,--out-implib,libprsr_tst.dll.a -Wl,--major-image-version,1,--minor-image-version,0 @CMakeFiles\prsr_tst.dir\linkLibs.rsp

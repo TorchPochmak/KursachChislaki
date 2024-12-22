@@ -8,24 +8,31 @@
 
 
 
-Calculation::reaction_data ::reaction_data  (const std::string &path_reactions,
-    const std::string &path_coefs) :
+Calculation::reaction_data::reaction_data  () :
         _reactions({}),
         _mass({}),
+        _fuel_fraction({}),
         _A({}),
         _n({}),
         _E({})
-{
-    std::ifstream input_reactions(path_reactions);
+{   };
 
-    if (!input_reactions.is_open())
+
+Calculation::reaction_data &Calculation::reaction_data::parse_reactions (const std::string &path) noexcept
+{
+    if (_reactions.size() != 0)
+    {
+        return *this;
+    }
+
+    std::ifstream input(path);
+    if (!input.is_open())
     {
         std::cout << "File seems to be abscent or corrupted.\n";
     }
 
     std::string buff;
-
-    while (std::getline(input_reactions, buff))
+    while (std::getline(input, buff))
     {
         std::vector< std::complex<double>> row_result({});
         std::istringstream buff_row(buff);
@@ -35,20 +42,25 @@ Calculation::reaction_data ::reaction_data  (const std::string &path_reactions,
         {
             row_result.push_back(std::complex<double>(value, 0));
         }
-        
         _reactions.push_back(row_result);
     }
 
-    std::ifstream input_coefs(path_coefs);
+    return *this;
+};
 
-    if (!input_coefs.is_open())
+
+Calculation::reaction_data &Calculation::reaction_data::parse_coefficients (const std::string &path) noexcept
+{
+    std::ifstream input(path);
+    if (!input.is_open())
     {
         std::cout << "File seems to be abscent or corrupted.\n";
-        return;
+        return *this;
     }
 
+    std::string buff;
     std::vector< std::vector<double>> buff_result({});
-    while (std::getline(input_coefs, buff))
+    while (std::getline(input, buff))
     {
         std::vector<double> line_result({});
         double value = 0;
@@ -64,74 +76,161 @@ Calculation::reaction_data ::reaction_data  (const std::string &path_reactions,
     }
 
     _mass = buff_result[0];
+    _cnt_components = buff_result[0].size();
+
     _A = buff_result[1];
     _n = buff_result[2];
     _E = buff_result[3];
+
+    return *this;
+};
+
+
+Calculation::reaction_data &Calculation::reaction_data::parse_fuel (const std::string &path) noexcept
+{
+    std::ifstream input(path);
+
+    if (!(input.is_open()))
+    {
+        std::cout << "File seems to abscent or corructed.\n";
+        return *this;
+    }
+
+    double overall_mass = 0;
+    double overall_cnt = 0;
+
+    std::string buff;
+    std::getline(input, buff);
+    std::istringstream fuel(buff);
+
+    double fraction = 0;
+    while (fuel >> fraction)
+    {
+        overall_cnt += fraction;
+        _fuel_fraction.push_back(fraction);
+    }
+
+    if (_fuel_fraction.size() != _cnt_components)
+    {
+        _fuel_fraction = {};
+        return *this;
+    }
+
+    auto iter = _mass.begin();
+    for (auto &elem : _fuel_fraction)
+    {
+        overall_mass += elem * (*iter);
+        ++iter;
+    }
+    //overall_mass /= overall_cnt;
+
+    for (auto &elem : _fuel_fraction)
+    {
+        elem = elem / overall_mass; // / overall_cnt;
+    }
+
+    return *this;
 };
 
 
 
-std::vector< std::pair< double, double>> Calculation::get_chemical_rate (const double &T, const reaction_data &data) noexcept
+std::vector<double> Calculation::get_mole_count (const reaction_data &data, const double T) noexcept
+{
+    std::vector<double> result({});
+    auto reaction_rate = get_reaction_rates(data, T);
+    int sz = reaction_rate.size();
+
+    for (int el = 0; el < data._cnt_components; el++)
+    {
+        double per_element = 0;
+        for (int r = 0; r < sz; r++)
+        {
+            per_element += (data._reactions[r][el].real() - data._reactions[r + data._cnt_components][el].real()) *
+                reaction_rate[r].second - reaction_rate[r].first;
+        }
+        result.push_back(per_element);
+    }
+
+    return result;
+};
+
+
+std::vector< std::pair<double, double>> Calculation::get_reaction_rates (const reaction_data &data,
+    const double T) noexcept
 {
     std::vector< std::pair<double, double>> result({});
 
-    int dim = data._reactions[0].size() / 2;
-    for (int i = 0; i < dim; i++)
+    for (int i = 0; i < data._cnt_components; i++)
     {
-        std::vector<double> gamma = get_gamma((data._reactions)[i], data._mass);
-        
-        double comp_f = 1;
-        double comp_r = 1;
-        for (int j = 0; j < dim; j++)
-        {
-            comp_f *= pow(ro * gamma[j], data._reactions[i][j].real());
-            comp_r *= pow(ro * gamma[j], data._reactions[i][j + dim].real());
-        }
-
-        result.push_back(std::make_pair(get_k(T, data._A[i], data._n[i], data._E[i]) * comp_f, 
-            get_k(T, data._A[i + dim], data._n[i + dim], data._E[i + dim]) * comp_r));
+        std::pair<double, double> per_reaction = std::make_pair(
+            (get_reaction_density_comp_forward(data._cnt_components, data._reactions[i], data._fuel_fraction) *
+                get_K_forward(data, T, i)),
+            (get_reaction_density_comp_reverse(data._cnt_components, data._reactions[i], data._fuel_fraction) *
+                get_K_reverse(data, T, i)));
+        result.push_back(per_reaction);
     }
 
     return result;
 };
 
 
-double Calculation::get_k (const double &T,
-    const double &A, 
-    const double &n,
-    const double &E) noexcept
+double Calculation::get_reaction_density_comp_forward (
+    const int &elem_cnt,
+    const std::vector<std::complex<double>> &reaction, 
+    const std::vector<double> &fuel_fractions) noexcept
 {
-    return (A * pow(T, n) * exp(-(E/T)));
+    return get_reaction_density_comp (elem_cnt,
+        reaction,
+        fuel_fractions);
 };
 
 
-std::vector<double> Calculation::get_gamma (const std::vector< std::complex<double>> &reaction,
-        const std::vector<double> &mass) noexcept
+double Calculation::get_reaction_density_comp_reverse (
+    const int &elem_cnt,
+    const std::vector<std::complex<double>> &reaction, 
+    const std::vector<double> &fuel_fractions) noexcept
 {
-    std::vector<double> result({});
+    //std::vector< std::complex<double>> reaction_reverse = ;
+    return get_reaction_density_comp (elem_cnt,
+        {reaction.begin() + elem_cnt, reaction.end() - 1},
+        fuel_fractions);
+};
 
-    std::vector<double> parts({});
-    int dim = reaction.size() / 2;
 
-    double total = 0;
-    for (int i = 0; i < dim; i++)
+double Calculation::get_reaction_density_comp (
+        const int &elem_cnt,
+        const std::vector<std::complex<double>> &reaction, 
+        const std::vector<double> &fuel_fractions) noexcept
+{
+    double result = 1;
+
+    for (int i = 0; i < elem_cnt; i++)
     {
-        total += reaction[i].real();
-    }
-
-    double sum = 0;
-    for (int i = 0; i < dim; i++)
-    {
-        parts.push_back(reaction[i].real() / total);
-        sum += parts[i] * mass[i];
-    }
-
-    for (int i = 0; i < dim; i++)
-    {
-        result.push_back(parts[i] / sum);
+        result *= pow(ro * fuel_fractions[i], reaction[i].real());
     }
 
     return result;
 };
 
+
+double Calculation::get_K_forward (const reaction_data &data, const double &T, const int &r) noexcept
+{
+    return get_K(data._A[r], data._E[r], data._n[r], T);
+};
+
+
+double Calculation::get_K_reverse (const reaction_data &data, const double &T, const int &r) noexcept
+{
+    int shifted_r = r + data._cnt_components;
+    return get_K(data._A[shifted_r], data._E[shifted_r], data._n[shifted_r], T);
+};
+
+
+double Calculation::get_K (const double &A,
+        const double &E,
+        const double &n,
+        const double &T) noexcept
+{
+    return (A * pow(T, n) * exp(-(E / T)));
+};
 
