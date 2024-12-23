@@ -21,6 +21,6 @@ int main (int argc, char **argv)
         parse_coefficients(path_coefs).
         parse_fuel(path_fuel);
 
-    auto result = Calculation::get_mole_count(reactions, 300);
+    auto result = Calculation::get_matrix(reactions, 300);
 
 }

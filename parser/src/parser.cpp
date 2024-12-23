@@ -34,13 +34,13 @@ Calculation::reaction_data &Calculation::reaction_data::parse_reactions (const s
     std::string buff;
     while (std::getline(input, buff))
     {
-        std::vector< std::complex<double>> row_result({});
+        std::vector< double> row_result({});
         std::istringstream buff_row(buff);
         double value = 0;
 
         while (buff_row >> value)
         {
-            row_result.push_back(std::complex<double>(value, 0));
+            row_result.push_back(value);
         }
         _reactions.push_back(row_result);
     }
@@ -134,25 +134,67 @@ Calculation::reaction_data &Calculation::reaction_data::parse_fuel (const std::s
 
 
 
-std::vector<double> Calculation::get_mole_count (const reaction_data &data, const double T) noexcept
+std::vector< std::vector<double>> Calculation::get_matrix (const reaction_data &data, const double T) noexcept
 {
-    std::vector<double> result({});
-    auto reaction_rate = get_reaction_rates(data, T);
-    int sz = reaction_rate.size();
+    std::vector< std::vector<double>> result({});
 
-    for (int el = 0; el < data._cnt_components; el++)
+    for (int r = 0; r < data._cnt_components; r++)
     {
-        double per_element = 0;
-        for (int r = 0; r < sz; r++)
+        double K_forward = get_K_forward(data, T, r);
+        double K_reverse = get_K_reverse(data, T, r);
+        double comp_forward = get_reaction_density_comp_forward(data._cnt_components,   
+            data._reactions[r], 
+            data._fuel_fraction);
+        double comp_reverse =  get_reaction_density_comp_reverse(data._cnt_components,   
+            data._reactions[r], 
+            data._fuel_fraction);
+
+        std::vector<double> result_per_reaction({});
+        for (int elem = 0; elem < data._cnt_components; elem++)
         {
-            per_element += (data._reactions[r][el].real() - data._reactions[r + data._cnt_components][el].real()) *
-                reaction_rate[r].second - reaction_rate[r].first;
+            double comp_forward_amort = (data._reactions[r][elem] == 0 ) 
+                    ? 0
+                    : (data._fuel_fraction[elem] == 0) 
+                        ? 0
+                        : (comp_forward * data._reactions[r][elem] / data._fuel_fraction[elem]);
+
+            double comp_reverse_amort = (data._reactions[r][elem + data._cnt_components] == 0 && data._fuel_fraction[elem] != 0) 
+                    ? 0
+                    : (data._fuel_fraction[elem] == 0)
+                        ? 0
+                        : (comp_forward * data._reactions[r][elem] / data._fuel_fraction[elem]);
+
+            result_per_reaction.push_back(
+                (data._reactions[r][elem] - data._reactions[r][elem + data._cnt_components]) * 
+                (K_reverse * comp_reverse_amort - K_forward * comp_forward_amort));
         }
-        result.push_back(per_element);
+        
+        result.push_back(result_per_reaction);
     }
 
     return result;
-};
+}; 
+
+
+// std::vector<double> Calculation::get_mole_count (const reaction_data &data, const double T) noexcept
+// {
+//     std::vector<double> result({});
+//     auto reaction_rate = get_reaction_rates(data, T);
+//     int sz = reaction_rate.size();
+
+//     for (int el = 0; el < data._cnt_components; el++)
+//     {
+//         double per_element = 0;
+//         for (int r = 0; r < sz; r++)
+//         {
+//             per_element += (data._reactions[r][el] - data._reactions[r + data._cnt_components][el]) *
+//                 reaction_rate[r].second - reaction_rate[r].first;
+//         }
+//         result.push_back(per_element);
+//     }
+
+//     return result;
+// };
 
 
 std::vector< std::pair<double, double>> Calculation::get_reaction_rates (const reaction_data &data,
@@ -176,7 +218,7 @@ std::vector< std::pair<double, double>> Calculation::get_reaction_rates (const r
 
 double Calculation::get_reaction_density_comp_forward (
     const int &elem_cnt,
-    const std::vector<std::complex<double>> &reaction, 
+    const std::vector<double> &reaction, 
     const std::vector<double> &fuel_fractions) noexcept
 {
     return get_reaction_density_comp (elem_cnt,
@@ -187,7 +229,7 @@ double Calculation::get_reaction_density_comp_forward (
 
 double Calculation::get_reaction_density_comp_reverse (
     const int &elem_cnt,
-    const std::vector<std::complex<double>> &reaction, 
+    const std::vector<double> &reaction, 
     const std::vector<double> &fuel_fractions) noexcept
 {
     //std::vector< std::complex<double>> reaction_reverse = ;
@@ -199,14 +241,14 @@ double Calculation::get_reaction_density_comp_reverse (
 
 double Calculation::get_reaction_density_comp (
         const int &elem_cnt,
-        const std::vector<std::complex<double>> &reaction, 
+        const std::vector<double> &reaction, 
         const std::vector<double> &fuel_fractions) noexcept
 {
     double result = 1;
 
     for (int i = 0; i < elem_cnt; i++)
     {
-        result *= pow(ro * fuel_fractions[i], reaction[i].real());
+        result *= pow(ro * fuel_fractions[i], reaction[i]);
     }
 
     return result;

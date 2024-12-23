@@ -12,7 +12,7 @@ namespace Calculation
     {
     public:
 
-        std::vector< std::vector< std::complex<double>>> _reactions;
+        std::vector< std::vector<double>> _reactions;
 
         std::vector<double> _mass;
         int _cnt_components;
@@ -33,6 +33,8 @@ namespace Calculation
         reaction_data &parse_fuel (const std::string &path) noexcept;
     };
 
+    std::vector< std::vector<double>> get_matrix (const reaction_data &data, const double T) noexcept;
+
     std::vector<double> get_mole_count (const reaction_data &data, const double T) noexcept;
 
     std::vector< std::pair<double, double>> get_reaction_rates (const reaction_data &data,
@@ -40,17 +42,17 @@ namespace Calculation
 
     double get_reaction_density_comp_forward (
         const int &elem_cnt,
-        const std::vector<std::complex<double>> &reaction, 
+        const std::vector<double> &reaction, 
         const std::vector<double> &fuel_fractions) noexcept;
 
     double get_reaction_density_comp_reverse (
         const int &elem_cnt,
-        const std::vector<std::complex<double>> &reaction, 
+        const std::vector<double> &reaction, 
         const std::vector<double> &fuel_fractions) noexcept;
 
     double get_reaction_density_comp (
         const int &elem_cnt,
-        const std::vector<std::complex<double>> &reaction, 
+        const std::vector<double> &reaction, 
         const std::vector<double> &fuel_fractions) noexcept;
 
 
