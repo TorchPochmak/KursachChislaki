@@ -195,8 +195,8 @@ int main() {
     //  }
 
         // find min and max abs eigenvalues
-        double min_abs_eigenvalue = std::abs(eigenvalues[0].real());
-        double max_abs_eigenvalue = std::abs(eigenvalues[0].real());
+        double min_abs_eigenvalue = std::fabs(eigenvalues[0].real());
+        double max_abs_eigenvalue = std::fabs(eigenvalues[0].real());
         for (int i = 1; i < SPECIES_COUNT; ++i) {
             if(std::abs(eigenvalues[i].real()) != 0){
                 min_abs_eigenvalue = std::min(min_abs_eigenvalue, std::abs(eigenvalues[i].real()));
