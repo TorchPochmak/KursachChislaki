@@ -8,8 +8,8 @@
 
 const int SPECIES_COUNT = 7;
 const int REACTION_COUNT = 7;
-const double T = 500.0;  // Temperature in K
-const double RHO = 300.0;  // Density in kg/m^3
+const double T = 3000.0;  // Temperature in K
+const double RHO = 1000.0;  // Density in kg/m^3
 const double R = 8.31446;  // Universal gas constant in J/(mol·K)
 
 // Molecular masses in g/mol
@@ -66,7 +66,7 @@ public:
 
     // Calculate reaction rate coefficient k
     double calculateK(double A, double n, double E) {
-        return A * pow(T, n) * exp(-E / (R * T));
+        return A * pow(T, n) * exp(-E /(R* T));
     }
 
     // Calculate gamma values (kg/mole)
@@ -127,6 +127,23 @@ public:
     }
 };
 
+int test() {
+    std::vector<std::vector<double>> A = {
+        {6, 8, 2, 6, 34, 13},
+        {54, 76, 12, 43, 23, 12},
+        {11, 65, 34, 98, 9, 25},
+        {27, 59, 73, 51, 49, 23},
+        {17, 39, 49, 27, 74, 94},
+        {69, 44, 23, 47, 26, 39}
+    };
+    std::vector<std::complex<double>> eigenvalues = find_eigenvalues(A);
+    for (int i = 0; i < 6; ++i) {
+        std::cout << "lambda " << i + 1 << " = " << std::fixed << std::setprecision(6)
+                 << eigenvalues[i].real() << " + " << eigenvalues[i].imag() << "i" << std::endl;
+    }
+    return 0;
+}
+
 int main() {
     //set locale ru
     std::setlocale(LC_ALL, "ru");
@@ -170,7 +187,7 @@ int main() {
     std::cout << "\nEigenvalues of the Jacobian matrix:" << std::endl;
     auto eigenvalues = find_eigenvalues(jacobian);
     for (int i = 0; i < SPECIES_COUNT; ++i) {
-        std::cout << "λ" << i + 1 << " = " << std::fixed << std::setprecision(6) 
+        std::cout << "lambda" << i + 1 << " = " << std::fixed << std::setprecision(6)
                  << eigenvalues[i].real() << " + " << eigenvalues[i].imag() << "i" << std::endl;
     }
 
