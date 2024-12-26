@@ -4,11 +4,11 @@
 #include <cmath>
 #include <iomanip>
 #include "qr_algorithm.hpp"
-
+#include <bits/stdc++.h>
 
 const int SPECIES_COUNT = 7;
 const int REACTION_COUNT = 7;
-const double T = 3000.0;  // Temperature in K
+double T = 3000.0;  // Temperature in K
 const double RHO = 1000.0;  // Density in kg/m^3
 const double R = 8.31446;  // Universal gas constant in J/(mol·K)
 
@@ -136,11 +136,11 @@ int test() {
         {17, 39, 49, 27, 74, 94},
         {69, 44, 23, 47, 26, 39}
     };
-    std::vector<std::complex<double>> eigenvalues = find_eigenvalues(A);
-    for (int i = 0; i < 6; ++i) {
-        std::cout << "lambda " << i + 1 << " = " << std::fixed << std::setprecision(6)
-                 << eigenvalues[i].real() << " + " << eigenvalues[i].imag() << "i" << std::endl;
-    }
+    // std::vector<std::complex<double>> eigenvalues = find_eigenvalues(A);
+    // for (int i = 0; i < 6; ++i) {
+    //     std::cout << "lambda " << i + 1 << " = " << std::fixed << std::setprecision(6)
+    //              << eigenvalues[i].real() << " + " << eigenvalues[i].imag() << "i" << std::endl;
+    // }
     return 0;
 }
 
@@ -151,56 +151,68 @@ int main() {
 
     // Read data from files
     system.readData("forward.txt", "backward.txt", "kinetics.txt");
+    std::vector<std::pair<double,double>> res = std::vector<std::pair<double, double>>();
+    for(double i = 300; i <= 3000; i+=100)
+    {
+        T = i;
+        // Initial densities
+        std::vector<double> rho(SPECIES_COUNT, RHO/SPECIES_COUNT);  // Distribute density equally among species
 
-    // Initial densities
-    std::vector<double> rho(SPECIES_COUNT, RHO/SPECIES_COUNT);  // Distribute density equally among species
+        // Calculate gamma values
+        auto gamma = system.calculateGamma(rho);
+        // for (int i = 0; i < SPECIES_COUNT; ++i) {
+        //     std::cout << "Gamma[" << i << "]: " << gamma[i] << std::endl;
+        // }
 
-    // Calculate gamma values
-    auto gamma = system.calculateGamma(rho);
-    for (int i = 0; i < SPECIES_COUNT; ++i) {
-        std::cout << "Gamma[" << i << "]: " << gamma[i] << std::endl;
-    }
-
-    // Calculate Jacobian
-    auto jacobian = system.calculateJacobian(gamma);
-    
-    // Print Jacobian matrix
-    std::cout << "Jacobian matrix dW_i/dgamma_j:" << std::endl;
-    bool has_valid_values = false;
-    for (int i = 0; i < SPECIES_COUNT; ++i) {
-        for (int j = 0; j < SPECIES_COUNT; ++j) {
-            std::cout.precision(4);
-            std::cout << std::setw(10) << jacobian[i][j] << "\t";
-            if (std::isfinite(jacobian[i][j])) {
-                has_valid_values = true;
+        // Calculate Jacobian
+        auto jacobian = system.calculateJacobian(gamma);
+        
+        // Print Jacobian matrix
+        //std::cout << "Jacobian matrix dW_i/dgamma_j:" << std::endl;
+        bool has_valid_values = false;
+        for (int i = 0; i < SPECIES_COUNT; ++i) {
+            for (int j = 0; j < SPECIES_COUNT; ++j) {
+            //  std::cout.precision(4);
+                //std::cout << std::setw(10) << jacobian[i][j] << "\t";
+                if (std::isfinite(jacobian[i][j])) {
+                    has_valid_values = true;
+                }
             }
-        }
-        std::cout << std::endl;
-    }
-
-    if (!has_valid_values) {
-        std::cout << "\nWarning: Jacobian matrix contains no valid finite values!" << std::endl;
-        return 1;
-    }
-
-    // Calculate eigenvalues using QR algorithm
-    std::cout << "\nEigenvalues of the Jacobian matrix:" << std::endl;
-    auto eigenvalues = find_eigenvalues(jacobian);
-    for (int i = 0; i < SPECIES_COUNT; ++i) {
-        std::cout << "lambda" << i + 1 << " = " << std::fixed << std::setprecision(6)
-                 << eigenvalues[i].real() << " + " << eigenvalues[i].imag() << "i" << std::endl;
-    }
-
-    // find min and max abs eigenvalues
-    double min_abs_eigenvalue = std::abs(eigenvalues[0].real());
-    double max_abs_eigenvalue = std::abs(eigenvalues[0].real());
-    for (int i = 1; i < SPECIES_COUNT; ++i) {
-        if(std::abs(eigenvalues[i].real()) != 0){
-            min_abs_eigenvalue = std::min(min_abs_eigenvalue, std::abs(eigenvalues[i].real()));
+          //  std::cout << std::endl;
         }
 
-        max_abs_eigenvalue = std::max(max_abs_eigenvalue, std::abs(eigenvalues[i].real()));
+        //if (!has_valid_values) {
+        //  std::cout << "\nWarning: Jacobian matrix contains no valid finite values!" << std::endl;
+    //     return 1;
+        //}
+
+        // Calculate eigenvalues using QR algorithm
+        //std::cout << "\nEigenvalues of the Jacobian matrix:" << std::endl;
+        auto eigenvalues = find_eigenvalues(jacobian);
+    // for (int i = 0; i < SPECIES_COUNT; ++i) {
+        //   std::cout << "lambda" << i + 1 << " = " << std::fixed << std::setprecision(6)
+        //           << eigenvalues[i].real() << " + " << eigenvalues[i].imag() << "i" << std::endl;
+    //  }
+
+        // find min and max abs eigenvalues
+        double min_abs_eigenvalue = std::abs(eigenvalues[0].real());
+        double max_abs_eigenvalue = std::abs(eigenvalues[0].real());
+        for (int i = 1; i < SPECIES_COUNT; ++i) {
+            if(std::abs(eigenvalues[i].real()) != 0){
+                min_abs_eigenvalue = std::min(min_abs_eigenvalue, std::abs(eigenvalues[i].real()));
+            }
+
+            max_abs_eigenvalue = std::max(max_abs_eigenvalue, std::abs(eigenvalues[i].real()));
+        }
+        res.push_back({i, max_abs_eigenvalue / min_abs_eigenvalue});
+
+        //std::cout << i << " " << "Stiffness: " << max_abs_eigenvalue / min_abs_eigenvalue << std::endl;
     }
-    std::cout << "Stiffness: " << max_abs_eigenvalue / min_abs_eigenvalue << std::endl;
+    std::cout << res.size() << std::endl;
+    for(int i = 0; i < res.size(); i++)
+        std::cout << res[i].first << " ";
+    std::cout << std::endl;
+    for(int i = 0; i < res.size(); i++)
+        std::cout << res[i].second << " ";
     return 0;
 }
