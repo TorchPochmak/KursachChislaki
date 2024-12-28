@@ -5,6 +5,7 @@
 #include <iomanip>
 #include "qr_algorithm.hpp"
 #include <bits/stdc++.h>
+#include <complex>
 
 const int SPECIES_COUNT = 7;
 const int REACTION_COUNT = 7;
@@ -151,14 +152,22 @@ int main() {
 
     // Read data from files
     system.readData("forward.txt", "backward.txt", "kinetics.txt");
+    
+    // Initial densities
+    std::vector<double> rho(SPECIES_COUNT, RHO/SPECIES_COUNT);  // Distribute density equally among species
+
+    // Calculate gamma values
+    
+
+    //if (!has_valid_values) {
+    //  std::cout << "\nWarning: Jacobian matrix contains no valid finite values!" << std::endl;
+    //     return 1;
+        //}
+
     std::vector<std::pair<double,double>> res = std::vector<std::pair<double, double>>();
-    for(double i = 300; i <= 3000; i+=100)
+    for(double i = 300; i <= 6000; i+=300)
     {
         T = i;
-        // Initial densities
-        std::vector<double> rho(SPECIES_COUNT, RHO/SPECIES_COUNT);  // Distribute density equally among species
-
-        // Calculate gamma values
         auto gamma = system.calculateGamma(rho);
         // for (int i = 0; i < SPECIES_COUNT; ++i) {
         //     std::cout << "Gamma[" << i << "]: " << gamma[i] << std::endl;
@@ -177,27 +186,49 @@ int main() {
                 if (std::isfinite(jacobian[i][j])) {
                     has_valid_values = true;
                 }
+                if(std::fabs(jacobian[i][j]) < 1e-5)
+                    jacobian[i][j] = 0;
             }
-          //  std::cout << std::endl;
+            //  std::cout << std::endl;
         }
-
-        //if (!has_valid_values) {
-        //  std::cout << "\nWarning: Jacobian matrix contains no valid finite values!" << std::endl;
-    //     return 1;
-        //}
-
+        //Нужно вычеркнуть третий столбец и третью строку
+        std::cout << "Якобиан (c вычеркнутым столбцом и строкой): \n";
+        auto jacob2 = std::vector<std::vector<double>>(jacobian.size() - 1, std::vector<double>(jacobian.size() - 1, 0));
+        int l = 0;
+        int k = 0;
+        for (int i = 0; i < SPECIES_COUNT; ++i) {
+            l = 0;
+            for (int j = 0; j < SPECIES_COUNT; ++j) {
+                if(i == 2)
+                    i += 1;
+                if(j == 2)
+                    j += 1;
+                if (std::isfinite(jacobian[i][j])) {
+                    has_valid_values = true;
+                }
+                if(std::fabs(jacobian[i][j]) < 1e-5)
+                    jacobian[i][j] = 0;
+                jacob2[k][l] = jacobian[i][j];
+                std::cout << std::scientific << std::setprecision(2) << std::showpoint << jacobian[i][j] << "\t";
+                l++;
+            }
+            std::cout << '\n';
+            k++;
+            //  std::cout << std::endl;
+        }
         // Calculate eigenvalues using QR algorithm
         //std::cout << "\nEigenvalues of the Jacobian matrix:" << std::endl;
-        auto eigenvalues = find_eigenvalues(jacobian);
-    // for (int i = 0; i < SPECIES_COUNT; ++i) {
-        //   std::cout << "lambda" << i + 1 << " = " << std::fixed << std::setprecision(6)
-        //           << eigenvalues[i].real() << " + " << eigenvalues[i].imag() << "i" << std::endl;
-    //  }
+        auto [eigenvalues, A] = get_eigens(jacob2);
+
+        for (int i = 0; i < SPECIES_COUNT - 1; ++i) {
+            std::cout << "lambda_" << i + 1 << std::scientific << std::setprecision(2) << std::showpoint << " = " << std::fixed << std::setprecision(6)
+                  << eigenvalues[i].real() << " + " << eigenvalues[i].imag() << "i" << std::endl;
+        }
 
         // find min and max abs eigenvalues
         double min_abs_eigenvalue = std::fabs(eigenvalues[0].real());
         double max_abs_eigenvalue = std::fabs(eigenvalues[0].real());
-        for (int i = 1; i < SPECIES_COUNT; ++i) {
+        for (int i = 1; i < SPECIES_COUNT -1; ++i) {
             if(std::abs(eigenvalues[i].real()) != 0){
                 min_abs_eigenvalue = std::min(min_abs_eigenvalue, std::abs(eigenvalues[i].real()));
             }
@@ -206,7 +237,8 @@ int main() {
         }
         res.push_back({i, max_abs_eigenvalue / min_abs_eigenvalue});
 
-        //std::cout << i << " " << "Stiffness: " << max_abs_eigenvalue / min_abs_eigenvalue << std::endl;
+        std::cout << "T: "<< i << " " << "Stiffness: " << max_abs_eigenvalue / min_abs_eigenvalue << std::endl;
+        std::cout << "----------------------------------------------------------------------------------" << std::endl;
     }
     std::cout << res.size() << std::endl;
     for(int i = 0; i < res.size(); i++)

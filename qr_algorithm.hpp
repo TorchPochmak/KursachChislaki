@@ -1,164 +1,321 @@
-#ifndef QR_ALGORITHM_HPP
-#define QR_ALGORITHM_HPP
-
-#include <vector>
 #include <cmath>
-#include <complex>
+#include <cstdint>
+#include <iomanip>
 #include <iostream>
+#include <stdexcept>
+#include <string>
+#include <vector>
+#include <complex>
 
-// Simple matrix multiplication
-std::vector<std::vector<double>> matrix_multiply(const std::vector<std::vector<double>>& A, 
-                                               const std::vector<std::vector<double>>& B) {
-    int n = A.size();
-    std::vector<std::vector<double>> C(n, std::vector<double>(n, 0.0));
-    
-    for (int i = 0; i < n; i++) {
-        for (int j = 0; j < n; j++) {
-            for (int k = 0; k < n; k++) {
-                C[i][j] += A[i][k] * B[k][j];
-            }
-        }
-    }
-    return C;
+
+const double EPS = 1e9;
+using namespace std;
+class Matrix {
+public:
+	Matrix(const std::vector<std::vector<double>>& data) : data(data) {
+		initialise();
+	}
+
+	Matrix(const Matrix& matrix) : data(matrix.data) {
+		initialise();
+	}
+
+	Matrix(const uint64_t& row_count, const uint64_t& column_count) {
+		data.assign(row_count, std::vector<double>(column_count, 0.0));
+		initialise();
+	}
+
+	Matrix add(const Matrix& other) {
+		if ( other.row_count != row_count || other.column_count != column_count ) {
+			throw std::invalid_argument("Incompatible matrix dimensions.");
+		}
+
+		Matrix result(data);
+		for ( int32_t i = 0; i < row_count; ++i ) {
+			for ( int32_t j = 0; j < column_count; ++j ) {
+				result.data[i][j] = data[i][j] + other.data[i][j];
+			}
+		}
+		return result;
+	}
+
+	Matrix multiply(const Matrix& other) {
+		if ( column_count != other.row_count ) {
+			throw std::invalid_argument("Incompatible matrix dimensions.");
+		}
+
+		Matrix result(row_count, other.column_count);
+		for ( int32_t i = 0; i < row_count; ++i ) {
+			for ( int32_t j = 0; j < other.column_count; ++j ) {
+				for ( int32_t k = 0; k < row_count; k++ ) {
+					result.data[i][j] += data[i][k] * other.data[k][j];
+				}
+			}
+		}
+		return result;
+	}
+
+	Matrix transpose() {
+		Matrix result(column_count, row_count);
+		for ( int32_t i = 0; i < row_count; ++i ) {
+			for ( int32_t j = 0; j < column_count; ++j ) {
+				result.data[j][i] = data[i][j];
+			}
+		}
+		return result;
+	}
+
+	Matrix minor(const int32_t& index) {
+		Matrix result(row_count, column_count);
+		for ( int32_t i = 0; i < index; ++i ) {
+			result.set_entry(i, i, 1.0);
+		}
+
+		for ( int32_t i = index; i < row_count; ++i ) {
+			for ( int32_t j = index; j < column_count; ++j ) {
+				result.set_entry(i, j, data[i][j]);
+			}
+		}
+		return result;
+	}
+
+	Matrix column(const int32_t& index) {
+		Matrix result(row_count, 1);
+		for ( int32_t i = 0; i < row_count; ++i ) {
+			result.set_entry(i, 0, data[i][index]);
+		}
+		return result;
+	}
+
+	Matrix scalarMultiply(const double& value) {
+		if ( column_count != 1 ) {
+			throw std::invalid_argument("Incompatible matrix dimension.");
+		}
+
+		Matrix result(row_count, column_count);
+		for ( int32_t i = 0; i < row_count; ++i ) {
+			result.data[i][0] = data[i][0] * value;
+		}
+		return result;
+	}
+
+	Matrix unit() {
+		if ( column_count != 1 ) {
+			throw std::invalid_argument("Incompatible matrix dimensions.");
+		}
+
+		const double the_magnitude = magnitude();
+		Matrix result(row_count, column_count);
+		for ( int32_t i = 0; i < row_count; ++i ) {
+			result.data[i][0] = data[i][0] / the_magnitude;
+		}
+		return result;
+	}
+
+	double magnitude() {
+		if ( column_count != 1 ) {
+			throw std::invalid_argument("Incompatible matrix dimensions.");
+		}
+
+		double norm = 0.0;
+		for ( int32_t i = 0; i < row_count; ++i ) {
+			norm += data[i][0] * data[i][0];
+		}
+		return std::sqrt(norm);
+	}
+
+	void display(const std::string& title) {
+		std::cout << title << std::endl;
+		for ( int32_t i = 0; i < row_count; ++i ) {
+			for ( int32_t j = 0; j < column_count; ++j ) {
+				cout << scientific << showpoint;
+				std::cout << std::setprecision(4) << data[i][j] << "\t\t";
+			}
+			std::cout << std::endl;
+		}
+		std::cout << std::endl;
+	}
+
+	double get_entry(const int32_t& row, const int32_t& col) {
+		return data[row][col];
+	}
+
+	void set_entry(const int32_t& row, const int32_t& col, const double& value) {
+		data[row][col] = value;
+	}
+
+	int32_t get_row_count() {
+		return row_count;
+	}
+
+	int32_t get_column_count() {
+		return column_count;
+	}
+
+	void initialise() {
+		row_count = data.size();
+		column_count = data[0].size();
+	}
+
+	int32_t row_count;
+	int32_t column_count;
+	std::vector<std::vector<double>> data;
+};
+
+typedef std::pair<Matrix, Matrix> matrix_pair;
+
+Matrix householder_factor(Matrix vector) {
+	if ( vector.get_column_count() != 1 ) {
+		throw std::invalid_argument("Incompatible matrix dimensions.");
+	}
+
+	const int32_t size = vector.data.size();
+	Matrix result(size, size);
+	for ( int32_t i = 0; i < size; ++i ) {
+		for ( int32_t j = 0; j < size; ++j ) {
+			result.set_entry(i, j, -2 * vector.get_entry(i, 0) * vector.get_entry(j, 0));
+		}
+	}
+
+	for ( int32_t i = 0; i < size; ++i ) {
+		result.set_entry(i, i, result.get_entry(i, i) + 1.0);
+	}
+	return result;
 }
 
-// Matrix transpose
-std::vector<std::vector<double>> transpose(const std::vector<std::vector<double>>& A) {
-    int n = A.size();
-    std::vector<std::vector<double>> AT(n, std::vector<double>(n));
-    for (int i = 0; i < n; i++) {
-        for (int j = 0; j < n; j++) {
-            AT[i][j] = A[j][i];
-        }
-    }
-    return AT;
+matrix_pair householder(Matrix matrix) {
+	const int32_t row_count = matrix.get_row_count();
+	const int32_t column_count = matrix.get_column_count();
+	std::vector<Matrix> versions_of_Q;
+	Matrix z(matrix);
+	Matrix z1(row_count, column_count);
+
+	for ( int32_t k = 0; k < column_count && k < row_count - 1; ++k ) {
+		Matrix vectorE(row_count, 1);
+		z1 = z.minor(k);
+		Matrix vectorX = z1.column(k);
+		double magnitudeX = vectorX.magnitude();
+		if ( matrix.get_entry(k, k) > 0 ) {
+			magnitudeX = -magnitudeX;
+		}
+
+		for ( int32_t i = 0; i < vectorE.data.size(); ++i ) {
+			vectorE.set_entry(i, 0, ( i == k ) ? 1 : 0);
+		}
+		vectorE = vectorE.scalarMultiply(magnitudeX).add(vectorX).unit();
+		versions_of_Q.emplace_back(householder_factor(vectorE));
+		z = versions_of_Q[k].multiply(z1);
+	}
+
+	Matrix Q = versions_of_Q[0];
+	for ( int32_t i = 1; i < column_count && i < row_count - 1; ++i ) {
+		Q = versions_of_Q[i].multiply(Q);
+	}
+
+	Matrix R = Q.multiply(matrix);
+	Q = Q.transpose();
+	return matrix_pair(R, Q);
 }
 
-// QR decomposition using Gram-Schmidt process
-void qr_decomposition(std::vector<std::vector<double>>& A, 
-                     std::vector<std::vector<double>>& Q, 
-                     std::vector<std::vector<double>>& R) {
-    int n = A.size();
-    Q = std::vector<std::vector<double>>(n, std::vector<double>(n));
-    R = std::vector<std::vector<double>>(n, std::vector<double>(n, 0.0));
+Matrix solve_upper_triangular(Matrix r, Matrix b) {
+	const int32_t column_count = r.get_column_count();
+	Matrix result(column_count, 1);
 
-    // Copy A columns to Q as initial vectors
-    for (int j = 0; j < n; j++) {
-        for (int i = 0; i < n; i++) {
-            Q[i][j] = A[i][j];
-        }
-    }
-
-    // Gram-Schmidt process
-    for (int j = 0; j < n; j++) {
-        for (int k = 0; k < j; k++) {
-            // Calculate dot product
-            double dot_product = 0.0;
-            for (int i = 0; i < n; i++) {
-                dot_product += Q[i][j] * Q[i][k];
-            }
-            R[k][j] = dot_product;
-
-            // Subtract projection
-            for (int i = 0; i < n; i++) {
-                Q[i][j] -= R[k][j] * Q[i][k];
-            }
-        }
-
-        // Normalize
-        double norm = 0.0;
-        for (int i = 0; i < n; i++) {
-            norm += Q[i][j] * Q[i][j];
-        }
-        norm = std::sqrt(norm);
-
-        if (norm > 1e-10) {  // Check for numerical stability
-            R[j][j] = norm;
-            for (int i = 0; i < n; i++) {
-                Q[i][j] /= norm;
-            }
-        }
-    }
+	for ( int32_t k = column_count - 1; k >= 0; --k ) {
+		double total = 0.0;
+		for ( int32_t j = k + 1; j < column_count; ++j ) {
+			total += r.get_entry(k, j) * result.get_entry(j, 0);
+		}
+		result.set_entry(k, 0, ( b.get_entry(k, 0) - total ) / r.get_entry(k, k));
+	}
+	return result;
 }
 
-// QR Algorithm to find eigenvalues
-std::vector<std::complex<double>> find_eigenvalues(std::vector<std::vector<double>> A, 
-                                                 int max_iter = 100, 
-                                                 double tol = 1e-10) {
-    int n = A.size();
-    std::vector<std::complex<double>> eigenvalues(n);
-    
-    // Apply QR algorithm
-    for (int iter = 0; iter < max_iter; iter++) {
-        // Perform QR decomposition
-        std::vector<std::vector<double>> Q, R;
-        qr_decomposition(A, Q, R);
-        
-        // Check if Q and R are valid
-        bool valid = true;
-        for (int i = 0; i < n; i++) {
-            for (int j = 0; j < n; j++) {
-                if (!std::isfinite(Q[i][j]) || !std::isfinite(R[i][j])) {
-                    valid = false;
-                    break;
+Matrix least_squares(Matrix vandermonde, Matrix b) {
+	matrix_pair pair = householder(vandermonde);
+	return solve_upper_triangular(pair.first, pair.second.transpose().multiply(b));
+}
+
+Matrix fit_polynomial(Matrix x, Matrix y, const int32_t& polynomial_degree) {
+	Matrix vandermonde(x.get_column_count(), polynomial_degree + 1);
+	for ( int32_t i = 0; i < x.get_column_count(); ++i ) {
+		for ( int32_t j = 0; j < polynomial_degree + 1; ++j ) {
+			vandermonde.set_entry(i, j, std::pow(x.get_entry(0, i), j));
+		}
+	}
+	return least_squares(vandermonde, y.transpose());
+}
+bool check_valid(Matrix A)
+{
+    int n = A.data.size();
+    for(int i = 0; i < n; ++i)
+    {
+        if(i != n - 1)
+        {
+            double cur = A.data[i][i];
+            double down = A.data[i+1][i];
+
+            for(int j = i + 2; j < n; j++)
+            {
+                if(fabs(A.data[i][j]) > EPS)
+                    return false;
+            }
+            if(fabs(down) < EPS)
+            {
+                continue;
+            }
+            else
+            {
+                for(int j = i + 2; j < n; j++)
+                {
+                    if(fabs(A.data[j][i + 1]) > EPS)
+                        return false;
                 }
+                i++;
             }
-            if (!valid) break;
-        }
-        
-        if (!valid) {
-            std::cout << "Warning: Invalid values in QR decomposition at iteration " << iter << std::endl;
-            break;
-        }
-        
-        // A = RQ
-        A = matrix_multiply(R, Q);
-        
-        // Check convergence
-        bool converged = true;
-        for (int i = 1; i < n; i++) {
-            for (int j = 0; j < i; j++) {
-                if (std::abs(A[i][j]) > tol) {
-                    converged = false;
-                    break;
-                }
-            }
-            if (!converged) break;
-        }
-        
-        if (converged) break;
-    }
-    
-    // Extract eigenvalues from diagonal
-    for (int i = 0; i < n; i++) {
-        if (i < n - 1 && std::abs(A[i+1][i]) > tol) {
-            // 2x2 block - complex conjugate pair
-            double a = A[i][i];
-            double b = A[i][i+1];
-            double c = A[i+1][i];
-            double d = A[i+1][i+1];
-            
-            double trace = a + d;
-            double det = a*d - b*c;
-            double disc = trace*trace - 4*det;
-            
-            if (disc < 0) {
-                double real = trace/2;
-                double imag = std::sqrt(-disc)/2;
-                eigenvalues[i] = std::complex<double>(real, imag);
-                eigenvalues[i+1] = std::complex<double>(real, -imag);
-            } else {
-                double sqrtDisc = std::sqrt(disc);
-                eigenvalues[i] = std::complex<double>((trace + sqrtDisc)/2, 0);
-                eigenvalues[i+1] = std::complex<double>((trace - sqrtDisc)/2, 0);
-            }
-            i++;
-        } else {
-            eigenvalues[i] = std::complex<double>(A[i][i], 0);
         }
     }
-    
-    return eigenvalues;
+    return true;
 }
 
-#endif // QR_ALGORITHM_HPP
+vector<complex<double>> get_eigenvalues(Matrix A)
+{
+    vector<complex<double>> result = vector<complex<double>>();
+    for(int i = 0; i < A.row_count; i++)
+    {
+        result.push_back(complex<double>(A.get_entry(i, i), 0));
+    }
+    return result;
+}
+
+using namespace std;
+
+std::pair<std::vector<std::complex<double>>, std::vector<std::vector<double>>> get_eigens(std::vector<std::vector<double>> data)
+{
+    int n = data.size();
+    Matrix A(data);
+	//A.display("Initial matrix A:");
+    matrix_pair pair = householder(A);
+    Matrix Q = pair.second;
+    Matrix R = pair.first;
+    for(int i = 0; i < 10000; i++)
+    {
+        pair = householder(A);
+        Q = pair.second;
+        R = pair.first;      
+        A = Matrix(R.multiply(Q));
+       // if(i % 100 == 0)
+        //{
+            //Q.display("Matrix Q:");
+            //R.display("Matrix R:");
+        
+        //if(check_valid(A))
+       // {
+        //     cout << "Число итераций: " << i << '\n';
+        //     break;
+        // }
+    }
+    //A.display("Matrix A:");
+    std::vector<std::complex<double>> gol = get_eigenvalues(A);
+    return std::make_pair(gol, A.data);
+}
