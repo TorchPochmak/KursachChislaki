@@ -88,47 +88,47 @@ Calculation::reaction_data &Calculation::reaction_data::parse_coefficients (cons
 
 Calculation::reaction_data &Calculation::reaction_data::parse_fuel (const std::string &path) noexcept
 {
-    std::ifstream input(path);
-
-    if (!(input.is_open()))
-    {
-        std::cout << "File seems to abscent or corructed.\n";
-        return *this;
-    }
-
-    double overall_mass = 0;
-    double overall_cnt = 0;
-
-    std::string buff;
-    std::getline(input, buff);
-    std::istringstream fuel(buff);
-
-    double fraction = 0;
-    while (fuel >> fraction)
-    {
-        overall_cnt += fraction;
-        _fuel_fraction.push_back(fraction);
-    }
-
-    if (_fuel_fraction.size() != _cnt_components)
-    {
-        _fuel_fraction = {};
-        return *this;
-    }
-
-    auto iter = _mass.begin();
-    for (auto &elem : _fuel_fraction)
-    {
-        overall_mass += elem * (*iter);
-        ++iter;
-    }
-    //overall_mass /= overall_cnt;
-
-    for (auto &elem : _fuel_fraction)
-    {
-        elem = elem / overall_mass; // / overall_cnt;
-    }
-
+    //std::ifstream input(path);
+//
+    //if (!(input.is_open()))
+    //{
+    //    std::cout << "File seems to abscent or corructed.\n";
+    //    return *this;
+    //}
+//
+    //double overall_mass = 0;
+    //double overall_cnt = 0;
+//
+    //std::string buff;
+    //std::getline(input, buff);
+    //std::istringstream fuel(buff);
+//
+    //double fraction = 0;
+    //while (fuel >> fraction)
+    //{
+    //    overall_cnt += fraction;
+    //    _fuel_fraction.push_back(fraction);
+    //}
+//
+    //if (_fuel_fraction.size() != _cnt_components)
+    //{
+    //    _fuel_fraction = {};
+    //    return *this;
+    //}
+//
+    //auto iter = _mass.begin();
+    //for (auto &elem : _fuel_fraction)
+    //{
+    //    overall_mass += elem * (*iter);
+    //    ++iter;
+    //}
+    ////overall_mass /= overall_cnt;
+//
+    //for (auto &elem : _fuel_fraction)
+    //{
+    //    elem = elem / overall_mass; // / overall_cnt;
+    //}
+    _fuel_fraction = {55.5088,  27.7543, 1e-10, 1e-10, 1e-10, 1e-10};
     return *this;
 };
 
@@ -138,7 +138,8 @@ std::vector< std::vector<double>> Calculation::get_matrix (const reaction_data &
 {
     std::vector< std::vector<double>> result({});
 
-    for (int r = 0; r < data._cnt_components; r++)
+    int sz = data._reactions.size();
+    for (int r = 0; r < sz; r++)
     {
         double K_forward = get_K_forward(data, T, r);
         double K_reverse = get_K_reverse(data, T, r);
